@@ -1,0 +1,21 @@
+A high-performance subleq interpreter.
+
+Simulates a RISC (OISC, or URISC) processor by interpreting input as operands
+to the subleq instruction (subtract and branch if less than or equal to). This
+processor is Turing complete.
+
+If you really care about performance and use continuous, similar inputs, you
+should use profile-guided optimization when compiling.
+
+Makefile targets:
+	subleq
+		- Normal usage
+	carefree
+		- Does not check for errors reading files (useful for multiple
+			file inputs)
+		- Does not allow '-' for reading from standard input
+		- Enables link-time optimization
+	debug
+		- Generates debug symbols
+		- Compiles with warnings
+		- Prints warnings if printing or reading fails or could fail
