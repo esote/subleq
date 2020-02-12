@@ -1,15 +1,14 @@
-CAREFREE := -DCAREFREE -flto
-DEBUG := -g -Wall -Wextra -Wconversion -DDEBUG
-PERF := -Ofast -funroll-loops -march=native
+PROG=	subleq
+SRCS=	subleq.c
 
-subleq: subleq.c
-	gcc $(PERF) -o subleq.out subleq.c
+CFLAGS=		-O2 -fstack-protector -D_FORTIFY_SOURCE=2 -pie -fPIE
+LDFLAGS=	-Wl,-z,now -Wl,-z,relro
 
-carefree: subleq.c
-	gcc $(CAREFREE) $(PERF) -o subleq.out subleq.c
+$(PROG): $(SRCS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $(PROG).out $(SRCS)
 
-debug: subleq.c
-	gcc $(DEBUG) -o subleq.out subleq.c
+debug: $(SRCS)
+	$(CC) -g -Wall -Wextra -Wconversion -Wundef -o $(PROG).out $(SRCS)
 
 clean:
-	rm -f subleq.out
+	rm -f $(PROG).out

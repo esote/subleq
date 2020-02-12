@@ -1,23 +1,17 @@
+#include <err.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-#if DEBUG
-#include <err.h>
-#include <limits.h>
-#endif
-
-static void
-subleq(int_fast64_t *restrict const ops)
+static int
+subleq(int_fast64_t *const ops)
 {
 	/* instruction pointers */
-	static int_fast64_t ip;
-	static int_fast64_t nip;
+	register int_fast64_t ip, nip;
 
 	/* subleq operands */
-	static int_fast64_t a;
-	static int_fast64_t b;
-	static int_fast64_t c;
+	register int_fast64_t a, b, c;
 
 	ip = 0;
 
@@ -28,33 +22,15 @@ subleq(int_fast64_t *restrict const ops)
 		c = ops[ip + 2];
 
 		if (a == -1) {
-			ops[b] = getchar();
-#if DEBUG
-			if (ops[b] == EOF) {
-				warnx("ip: %"PRIdFAST64" (arg b): read val "
-					"'%"PRIdFAST64"' with EOF", ip + 1,
-					ops[b]);
+			if ((ops[b] = getchar()) == EOF) {
+				return -1;
 			}
-#endif
 		} else if (b == -1) {
-#if DEBUG
-			if (ops[a] > UCHAR_MAX) {
-				warnx("ip: %"PRIdFAST64" (arg a): val "
-					"'%"PRIdFAST64"' may be printed wrong",
-					ip, ops[a]);
-			}
-
 			if (putchar((int)ops[a]) == EOF) {
-				warnx("ip: %"PRIdFAST64" (arg a): val "
-					"'%"PRIdFAST64"' printed with EOF", ip,
-					ops[a]);
+				return -1;
 			}
-#else
-			putchar(ops[a]);
-#endif
 		} else {
 			ops[b] -= ops[a];
-
 			if (ops[b] <= 0) {
 				nip = c;
 			}
@@ -62,65 +38,67 @@ subleq(int_fast64_t *restrict const ops)
 
 		ip = nip;
 	}
+
+	return 0;
 }
 
 int
 main(int argc, char *argv[])
 {
 	FILE *in;
-	size_t i;
-	size_t n;
+	size_t i, n, maxn;
 	int_fast64_t *ops;
-	int ret;
+
+	(void)argc;
+	argv++;
 
 	in = stdin;
 	ops = NULL;
-	ret = 0;
-
-	(void)argc;
-	(void)*argv++;
+	maxn = 0;
 
 	do {
-		if (*argv) {
-#ifdef CAREFREE
-			in = fopen(*argv, "r");
-#else
-			if (*argv[0] == '-' && *argv[1] == '\0') {
+		if (*argv != NULL) {
+			if (strcmp(*argv, "-") == 0) {
 				in = stdin;
 			} else if ((in = fopen(*argv, "r")) == NULL) {
-				ret = 1;
+				err(1, "fopen");
 			}
-#endif
 
-			(void)*argv++;
+			argv++;
 		}
 
-		fscanf(in, "%zu", &n);
-
-		ops = realloc(ops, n * sizeof(int_fast64_t));
-
-#ifndef CAREFREE
-		if (ops == NULL && n != 0) {
-			ret = 1;
+		if (fscanf(in, "%zu", &n) == EOF) {
+			err(1, "fscanf");
 		}
-#endif
+
+		if (n > maxn) {
+			maxn = n;
+
+			if ((ops = realloc(ops, maxn * sizeof(*ops))) == NULL) {
+				err(1, "realloc");
+			}
+		} else {
+			memset(ops + n, 0, (maxn - n) * sizeof(*ops));
+		}
 
 		for (i = 0; i < n; ++i) {
-			fscanf(in, "%"PRIdFAST64, &ops[i]);
+			if (fscanf(in, "%"PRIdFAST64, &ops[i]) == EOF) {
+				err(1, "fscanf");
+			}
 		}
 
-#ifndef CAREFREE
 		if (in != stdin && fclose(in) == EOF) {
-			ret = 1;
+			err(1, "fclose");
 		}
-#endif
 
-		subleq(ops);
-	} while (*argv);
+		if (subleq(ops) == -1) {
+			err(1, "subleq");
+		}
+	} while (*argv != NULL);
 
 	if (ops != NULL) {
 		free(ops);
 	}
 
-	return ret;
+	return 0;
 }
